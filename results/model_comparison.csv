@@ -1,0 +1,7 @@
+Metric,Baseline,Class Weighted
+Accuracy,0.8864,0.8443
+Fail Precision,0.1504,0.1147
+Fail Recall,0.1538,0.2024
+Fail F1-score,0.1508,0.1456
+Balanced Accuracy,0.5461,0.5462
+Average Precision,0.1485,0.1488
