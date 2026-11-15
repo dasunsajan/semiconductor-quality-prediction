@@ -1,0 +1,15 @@
+# SECOM dataset files
+secom.data
+secom_labels.data
+
+# Python temporary files
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# VS Code local settings
+.vscode/
+
+# Notebook temporary files
+.ipynb_checkpoints/
