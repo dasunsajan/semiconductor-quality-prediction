@@ -2,11 +2,13 @@
 secom.data
 secom_labels.data
 
+# Python virtual environments
+.venv*/
+venv*/
+
 # Python temporary files
 __pycache__/
-*.pyc
-.venv/
-venv/
+*.py[cod]
 
 # VS Code local settings
 .vscode/
