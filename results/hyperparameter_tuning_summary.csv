@@ -1,0 +1,4 @@
+Model,Best_Average_Precision,Best_Parameters
+Logistic Regression,0.1680194272795007,"{'classifier__C': np.float64(0.9846738873614566), 'classifier__class_weight': None}"
+SVM,0.19264716974662283,"{'classifier__C': np.float64(0.05415244119402541), 'classifier__class_weight': 'balanced', 'classifier__gamma': 'auto', 'classifier__kernel': 'rbf'}"
+Gradient Boosting,0.18034202356205847,"{'classifier__learning_rate': np.float64(0.05082341959721458), 'classifier__max_depth': 1, 'classifier__min_samples_leaf': 1, 'classifier__n_estimators': 138, 'classifier__subsample': np.float64(0.9947547746402069)}"

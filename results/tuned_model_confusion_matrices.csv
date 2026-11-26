@@ -1,0 +1,4 @@
+Model,True Pass,False Fail,Missed Fail,Correct Fail
+Logistic Regression,292,1,21,0
+SVM,232,61,7,14
+Gradient Boosting,234,59,10,11
