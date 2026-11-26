@@ -37,7 +37,6 @@ def main():
         C=1.0,
         gamma="scale",
         class_weight="balanced",
-        probability=True,
         random_state=42
     )
 
@@ -54,7 +53,7 @@ def main():
     # 5. Make predictions
     y_pred = model.predict(X_test)
 
-    y_prob = model.predict_proba(X_test)[:, 1]
+    y_scores = model.decision_function(X_test)
 
     # 6. Evaluate model
     print("\n========== SVM EVALUATION ==========")
@@ -66,7 +65,7 @@ def main():
 
     print(
         "Average Precision:",
-        average_precision_score(y_test, y_prob)
+        average_precision_score(y_test, y_scores, pos_label=1)
     )
 
     print("\nConfusion Matrix:")
