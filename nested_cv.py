@@ -1,70 +1,96 @@
+# Nested Cross-Validation for Logistic Regression
 
-# Group 29 - Nested Cross Validation
-# Logistic Regression Hyperparameter Tuning
-
-import pandas as pd
 from pathlib import Path
 
+import pandas as pd
+
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import (
-    StratifiedKFold,
     GridSearchCV,
-    cross_validate
+    StratifiedKFold,
+    cross_validate,
 )
 from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import make_scorer, precision_score
 
-# STEP 1: Load the SECOM dataset
-X = pd.read_csv(
-    "secom.data",
-    sep=r"\s+",
-    header=None
-)
+from models.model_pipeline import load_secom_data
+from preprocessing.preprocessing import create_preprocessing_pipeline
 
-labels = pd.read_csv(
-    "secom_labels.data",
-    sep=r"\s+",
-    header=None
-)
 
-y = labels.iloc[:, 0]
+# --------------------------------------------------
+# STEP 1: Project configuration
+# --------------------------------------------------
 
-print("Dataset Shape:", X.shape)
-print("Fail Records:", (y == 1).sum())
+PROJECT_ROOT = Path(__file__).resolve().parent
+RESULTS_DIR = PROJECT_ROOT / "results"
 
-# STEP 2: Create the ML pipeline
+RESULTS_DIR.mkdir(exist_ok=True)
+
+N_FEATURES = 15
+
+
+# --------------------------------------------------
+# STEP 2: Load dataset
+# --------------------------------------------------
+
+X, y = load_secom_data()
+
+print("Dataset shape:", X.shape)
+print("Pass records:", (y == -1).sum())
+print("Fail records:", (y == 1).sum())
+
+
+# --------------------------------------------------
+# STEP 3: Create complete ML pipeline
+# --------------------------------------------------
+
 pipeline = Pipeline([
-    ("imputer", SimpleImputer(
-        strategy="median",
-        keep_empty_features=True
-    )),
-    ("feature_filter", VarianceThreshold()),
-    ("scaler", StandardScaler()),
-    ("classifier", LogisticRegression(
-        max_iter=2000,
-        random_state=42
-    ))
+    (
+        "preprocessing",
+        create_preprocessing_pipeline(k=N_FEATURES)
+    ),
+    (
+        "classifier",
+        LogisticRegression(
+            max_iter=2000,
+            random_state=42
+        )
+    )
 ])
 
-# STEP 3: Define parameters to test
+
+# --------------------------------------------------
+# STEP 4: Define hyperparameter search space
+# --------------------------------------------------
+
 param_grid = {
-    "classifier__C": [0.01, 0.1, 1.0],
+    "classifier__C": [0.01, 0.1, 1.0, 10.0],
     "classifier__class_weight": [None, "balanced"]
 }
 
-# STEP 4: Define evaluation metrics
+
+# --------------------------------------------------
+# STEP 5: Define evaluation metrics
+# --------------------------------------------------
+
 scoring = {
     "accuracy": "accuracy",
-    "precision": "precision",
+    "precision": make_scorer(
+        precision_score,
+        zero_division=0
+    ),
     "recall": "recall",
     "f1": "f1",
     "balanced_accuracy": "balanced_accuracy",
     "average_precision": "average_precision"
 }
 
-# STEP 5: Inner CV - Hyperparameter tuning
+
+# --------------------------------------------------
+# STEP 6: Inner cross-validation
+# Hyperparameter tuning
+# --------------------------------------------------
+
 inner_cv = StratifiedKFold(
     n_splits=3,
     shuffle=True,
@@ -81,17 +107,27 @@ grid_search = GridSearchCV(
     error_score="raise"
 )
 
-# STEP 6: Outer CV - Model evaluation
+
+# --------------------------------------------------
+# STEP 7: Outer cross-validation
+# Model performance evaluation
+# --------------------------------------------------
+
 outer_cv = StratifiedKFold(
-    n_splits=3,
+    n_splits=5,
     shuffle=True,
     random_state=123
 )
 
+print("\nStarting nested cross-validation...")
+print("Outer folds: 5")
+print("Inner folds: 3")
+print("Hyperparameter combinations:", 8)
+
 results = cross_validate(
-    grid_search,
-    X,
-    y,
+    estimator=grid_search,
+    X=X,
+    y=y,
     cv=outer_cv,
     scoring=scoring,
     return_estimator=True,
@@ -99,48 +135,96 @@ results = cross_validate(
     error_score="raise"
 )
 
-# STEP 7: Display average performance
-print("\n--- Nested CV Results ---")
+
+# --------------------------------------------------
+# STEP 8: Display overall performance
+# --------------------------------------------------
+
+print("\n========== NESTED CV RESULTS ==========")
+
+summary_rows = []
 
 for metric in scoring:
-    values = results["test_" + metric]
+    values = results[f"test_{metric}"]
+
+    mean_value = values.mean()
+    std_value = values.std()
 
     print(
         f"{metric}: "
-        f"{values.mean():.4f} "
-        f"(+/- {values.std():.4f})"
+        f"{mean_value:.4f} (+/- {std_value:.4f})"
     )
 
-# STEP 8: Show best parameters for each outer fold
-print("\n--- Selected Hyperparameters ---")
+    summary_rows.append({
+        "metric": metric,
+        "mean": mean_value,
+        "std": std_value
+    })
+
+
+# --------------------------------------------------
+# STEP 9: Extract fold results and parameters
+# --------------------------------------------------
+
+print("\n========== BEST PARAMETERS ==========")
 
 rows = []
 
-for fold, search in enumerate(results["estimator"], start=1):
-    params = search.best_params_
+for fold, search in enumerate(
+    results["estimator"],
+    start=1
+):
+    best_params = search.best_params_
 
     print(f"\nOuter Fold {fold}")
-    print("Best Parameters:", params)
-    print("Inner CV AP:", round(search.best_score_, 4))
+    print("Best parameters:", best_params)
+    print(
+        "Inner CV Average Precision:",
+        round(search.best_score_, 4)
+    )
 
     row = {"fold": fold}
-    for metric in scoring:
-        row[metric] = results["test_" + metric][fold - 1]
 
-    row["best_C"] = params["classifier__C"]
+    for metric in scoring:
+        row[metric] = results[
+            f"test_{metric}"
+        ][fold - 1]
+
+    row["best_C"] = best_params[
+        "classifier__C"
+    ]
+
     row["best_class_weight"] = str(
-        params["classifier__class_weight"]
+        best_params["classifier__class_weight"]
     )
+
+    row["inner_cv_average_precision"] = (
+        search.best_score_
+    )
+
     rows.append(row)
 
-# STEP 9: Save evaluation results
-Path("results").mkdir(exist_ok=True)
 
-df = pd.DataFrame(rows)
+# --------------------------------------------------
+# STEP 10: Save results
+# --------------------------------------------------
 
-df.to_csv(
-    "results/nested_cv_results.csv",
+fold_results = pd.DataFrame(rows)
+
+fold_results.to_csv(
+    RESULTS_DIR / "nested_cv_results.csv",
     index=False
 )
 
-print("\nResults saved: results/nested_cv_results.csv")
+summary_df = pd.DataFrame(summary_rows)
+
+summary_df.to_csv(
+    RESULTS_DIR / "nested_cv_summary.csv",
+    index=False
+)
+
+print("\nResults saved successfully:")
+print(" - results/nested_cv_results.csv")
+print(" - results/nested_cv_summary.csv")
+
+print("\nNested cross-validation completed!")
