@@ -1,0 +1,6 @@
+Model,Balanced_Accuracy,Average_Precision,Fail_Precision,Fail_Recall,Fail_F1
+Logistic Regression,0.720705,0.262291,0.17,0.67,0.28
+Decision Tree,0.561108,0.085886,0.17,0.19,0.18
+Random Forest,0.494881,0.185473,0.00,0.00,0.00
+SVM,0.657890,0.217955,0.18,0.48,0.26
+Gradient Boosting,0.676581,0.168195,0.18,0.52,0.27
